@@ -24,42 +24,7 @@ ________________________________________
 •	MySQL / PostgreSQL
 •	Ledger-based accounting
 ________________________________________
-📂 Project Structure
-Backend/
-├── config/
-│   └── db.ts
-│
-├── controllers/
-│   ├── userController.ts
-│   ├── walletController.ts
-│   └── *.js (compiled JS)
-│
-├── models/
-│   ├── User.ts
-│   ├── Wallet.ts
-│   ├── Transaction.ts
-│   └── Ledger.ts
-│
-├── routes/
-│   ├── userRoutes.ts
-│   ├── walletRoutes.ts
-│   └── *.js
-│
-├── utils/
-│   └── withRetry.ts
-│
-├── seed/
-│   ├── seed.ts
-│   └── seed.js
-│
-├── server.ts
-├── server.js
-├── tsconfig.json
-├── package.json
-└── .env
-✅ .ts → source files
-✅ .js → compiled output (or direct Node execution)
-________________________________________
+
 ⚙️ Installation
 cd Backend
 npm install

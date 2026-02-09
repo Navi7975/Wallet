@@ -828,3 +828,70 @@ select:focus {
   outline: none;
   border-color: var(--primary);
 }
+
+.project-highlight {
+  text-decoration: none;
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.project-card {
+  position: relative;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: glowPulse 2.5s infinite;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.35);
+}
+
+.project-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.project-card p {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.project-link {
+  font-size: 0.8rem;
+  color: #93c5fd;
+}
+
+.project-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background: #3b82f6;
+  color: white;
+  font-size: 0.65rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Glow animation */
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0.2);
+  }
+}

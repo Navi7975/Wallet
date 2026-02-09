@@ -59,6 +59,21 @@ export default function WalletDashboard() {
                 </div>
 
                 <div className="main-content">
+                    {/* Project Highlight */}
+                    <a
+                        href="https://github.com/Navi7975/Wallet.git"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="project-highlight"
+                    >
+                        <div className="project-card">
+                            <span className="project-badge">PROJECT</span>
+                            <h3>Wallet Management System</h3>
+                            <p>View full source code on GitHub</p>
+                            <span className="project-link">github.com/Navi7975/Wallet</span>
+                        </div>
+                    </a>
+
                     {walletId ? (
                         <>
                             <div className="dashboard-header-row">

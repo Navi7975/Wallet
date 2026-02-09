@@ -1,8 +1,17 @@
 // HistoryList.tsx
 import API from "../api/api";
 import type { LedgerEntry } from "../types/types";
-import { History, Download, TrendingUp, TrendingDown, Calendar, Hash } from "lucide-react";
-import { useState } from "react";
+import {
+    History,
+    Download,
+    TrendingUp,
+    TrendingDown,
+    Calendar,
+    Hash,
+    Filter,
+    ChevronDown
+} from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 interface Props {
     walletId: number;
@@ -14,6 +23,19 @@ export default function HistoryList({ walletId, history, setHistory }: Props) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'positive' | 'negative'>('all');
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowDropdown(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     async function load() {
         setIsLoading(true);
@@ -76,31 +98,95 @@ export default function HistoryList({ walletId, history, setHistory }: Props) {
         entry.amount < 0 ? sum + Math.abs(entry.amount) : sum, 0
     );
 
+    const getFilterLabel = () => {
+        switch (filter) {
+            case 'all': return 'All Transactions';
+            case 'positive': return 'Top-ups Only';
+            case 'negative': return 'Purchases Only';
+            default: return 'Filter';
+        }
+    };
+
     return (
         <div className="card">
             <div className="card-header">
                 <History className="icon" size={20} />
                 <h3>Transaction History</h3>
                 <div className="header-actions">
-                    <div className="filter-buttons">
+                    <div className="dropdown-container" ref={dropdownRef}>
                         <button
-                            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-                            onClick={() => setFilter('all')}
+                            className="dropdown-trigger"
+                            onClick={() => setShowDropdown(!showDropdown)}
+                            aria-expanded={showDropdown}
+                            aria-haspopup="true"
                         >
-                            All
+                            <div className="dropdown-selection">
+                                <Filter size={16} />
+                                <span>{getFilterLabel()}</span>
+                            </div>
+                            <ChevronDown
+                                size={16}
+                                className={`dropdown-arrow ${showDropdown ? 'open' : ''}`}
+                            />
                         </button>
-                        <button
-                            className={`filter-btn ${filter === 'positive' ? 'active' : ''}`}
-                            onClick={() => setFilter('positive')}
-                        >
-                            Top-ups
-                        </button>
-                        <button
-                            className={`filter-btn ${filter === 'negative' ? 'active' : ''}`}
-                            onClick={() => setFilter('negative')}
-                        >
-                            Purchases
-                        </button>
+
+                        {showDropdown && (
+                            <div className="dropdown-menu">
+                                <div
+                                    className={`dropdown-item ${filter === 'all' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setFilter('all');
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    <div className="type-indicator">
+                                        <History size={16} />
+                                    </div>
+                                    <div>
+                                        <div className="dropdown-item-label">All Transactions</div>
+                                        <div className="dropdown-item-description">
+                                            Show all transactions
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    className={`dropdown-item ${filter === 'positive' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setFilter('positive');
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    <div className="type-indicator positive">
+                                        <TrendingUp size={16} />
+                                    </div>
+                                    <div>
+                                        <div className="dropdown-item-label">Top-ups Only</div>
+                                        <div className="dropdown-item-description">
+                                            Only show money added
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    className={`dropdown-item ${filter === 'negative' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setFilter('negative');
+                                        setShowDropdown(false);
+                                    }}
+                                >
+                                    <div className="type-indicator negative">
+                                        <TrendingDown size={16} />
+                                    </div>
+                                    <div>
+                                        <div className="dropdown-item-label">Purchases Only</div>
+                                        <div className="dropdown-item-description">
+                                            Only show money spent
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

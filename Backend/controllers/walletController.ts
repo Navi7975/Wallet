@@ -3,6 +3,9 @@ import sequelize from "../config/db";
 import { Wallet, Transaction, Ledger } from "../models";
 import { withRetry } from "../utils/withRetry";
 
+/* ======================================================
+   CREATE WALLET
+====================================================== */
 export const createWallet = async (req: Request, res: Response) => {
     const { userId, assetType } = req.body;
 
@@ -11,6 +14,9 @@ export const createWallet = async (req: Request, res: Response) => {
     res.json(wallet);
 };
 
+/* ======================================================
+   GET BALANCE (Ledger Source of Truth)
+====================================================== */
 export const getBalance = async (req: Request, res: Response) => {
     const walletId = Number(req.params.walletId);
 
@@ -20,6 +26,9 @@ export const getBalance = async (req: Request, res: Response) => {
     res.json({ balance });
 };
 
+/* ======================================================
+   GET LEDGER HISTORY
+====================================================== */
 export const getHistory = async (req: Request, res: Response) => {
     const walletId = Number(req.params.walletId);
 
@@ -31,80 +40,97 @@ export const getHistory = async (req: Request, res: Response) => {
     res.json(history);
 };
 
-
-
+/* ======================================================
+   CREATE TRANSACTION — FULLY FIXED
+====================================================== */
 export const createTransaction = async (req: Request, res: Response) => {
     const { walletId, amount, type, idempotencyKey } = req.body;
 
-    if (!walletId || !amount || amount <= 0 || !type || !idempotencyKey) {
+    const walletIdNum = Number(walletId);
+    const amt = Number(amount);
+
+    if (!walletIdNum || !amt || amt <= 0 || !type || !idempotencyKey) {
         return res.status(400).json({ msg: "Invalid request data" });
     }
 
     try {
-        await withRetry(async () => {
-            const t = await sequelize.transaction();
+        await sequelize.transaction(async (t) => {
 
-            // 1️⃣ Idempotency check
+            /* 1️⃣ Idempotency */
             const existing = await Transaction.findOne({
                 where: { idempotencyKey },
                 transaction: t,
                 lock: t.LOCK.UPDATE,
             });
 
-            if (existing) {
-                await t.rollback();
-                return; // silently ignore duplicate
-            }
+            if (existing) return;
 
-            // 2️⃣ Lock wallet
-            await Wallet.findByPk(walletId, {
+            /* 2️⃣ Lock wallet */
+            const wallet = await Wallet.findByPk(walletIdNum, {
                 transaction: t,
                 lock: t.LOCK.UPDATE,
             });
 
-            // 3️⃣ Current balance
+            if (!wallet) throw new Error("Wallet not found");
+
+            /* 3️⃣ Ledger balance */
             const balance =
                 (await Ledger.sum("amount", {
-                    where: { walletId },
+                    where: { walletId: walletIdNum },
                     transaction: t,
                 })) || 0;
 
-            // 4️⃣ Decide ledger amount based on type
+            /* 4️⃣ Signed amount */
             const ledgerAmount =
-                type === "purchase" ? -Math.abs(amount) : Math.abs(amount);
+                type === "purchase"
+                    ? -Math.abs(amt)
+                    : Math.abs(amt);
 
-            // 5️⃣ Insufficient funds check
             if (ledgerAmount < 0 && balance + ledgerAmount < 0) {
-                await t.rollback();
                 throw new Error("Insufficient funds");
             }
 
-            // 6️⃣ Create transaction
+            /* 5️⃣ Create transaction */
             const tx = await Transaction.create(
-                { idempotencyKey, type },
-                { transaction: t }
-            );
-
-            // 7️⃣ Create ledger entry
-            await Ledger.create(
                 {
-                    walletId,
-                    transactionId: tx.id,
-                    amount: ledgerAmount,
+                    idempotencyKey,
+                    type,
+                    status: "completed",
                 },
                 { transaction: t }
             );
 
-            await t.commit();
+            const newBalance = balance + ledgerAmount;
+
+            /* 6️⃣ Ledger entry */
+            await Ledger.create(
+                {
+                    walletId: walletIdNum,
+                    transactionId: tx.id,
+                    amount: ledgerAmount,
+                    balanceAfter: newBalance,
+                },
+                { transaction: t }
+            );
+
+            /* 7️⃣ Update wallet balance */
+            await wallet.update(
+                { balance: newBalance },
+                { transaction: t }
+            );
         });
 
         res.json({ success: true });
+
     } catch (err: any) {
         res.status(400).json({ msg: err.message });
     }
 };
 
 
+/* ======================================================
+   GET ALL WALLETS
+====================================================== */
 export const getWallets = async (_: Request, res: Response) => {
     const wallets = await Wallet.findAll();
     res.json(wallets);

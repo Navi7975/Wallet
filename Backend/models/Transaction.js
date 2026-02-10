@@ -8,8 +8,28 @@ const db_1 = __importDefault(require("../config/db"));
 class Transaction extends sequelize_1.Model {
 }
 Transaction.init({
-    id: { type: sequelize_1.DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    idempotencyKey: { type: sequelize_1.DataTypes.STRING, unique: true, allowNull: false },
-    type: { type: sequelize_1.DataTypes.STRING, allowNull: false },
-}, { sequelize: db_1.default, tableName: "transactions" });
+    id: {
+        type: sequelize_1.DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    idempotencyKey: {
+        type: sequelize_1.DataTypes.STRING,
+        unique: true,
+        allowNull: false
+    },
+    type: {
+        type: sequelize_1.DataTypes.STRING,
+        allowNull: false
+    },
+    status: {
+        type: sequelize_1.DataTypes.STRING,
+        defaultValue: 'pending',
+        allowNull: false
+    }
+}, {
+    sequelize: db_1.default,
+    tableName: "transactions",
+    timestamps: true
+});
 exports.default = Transaction;

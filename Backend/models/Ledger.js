@@ -8,9 +8,30 @@ const db_1 = __importDefault(require("../config/db"));
 class Ledger extends sequelize_1.Model {
 }
 Ledger.init({
-    id: { type: sequelize_1.DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    walletId: { type: sequelize_1.DataTypes.INTEGER, allowNull: false },
-    transactionId: { type: sequelize_1.DataTypes.INTEGER, allowNull: false },
-    amount: { type: sequelize_1.DataTypes.INTEGER, allowNull: false },
-}, { sequelize: db_1.default, tableName: "ledger_entries", timestamps: true });
+    id: {
+        type: sequelize_1.DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    walletId: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    transactionId: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    amount: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    balanceAfter: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: true,
+    },
+}, {
+    sequelize: db_1.default,
+    tableName: "ledger_entries",
+    timestamps: true,
+});
 exports.default = Ledger;

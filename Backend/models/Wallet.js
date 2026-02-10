@@ -8,8 +8,27 @@ const db_1 = __importDefault(require("../config/db"));
 class Wallet extends sequelize_1.Model {
 }
 Wallet.init({
-    id: { type: sequelize_1.DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    userId: { type: sequelize_1.DataTypes.INTEGER, allowNull: false },
-    assetType: { type: sequelize_1.DataTypes.STRING, allowNull: false },
-}, { sequelize: db_1.default, tableName: "wallets" });
+    id: {
+        type: sequelize_1.DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    userId: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+    },
+    assetType: {
+        type: sequelize_1.DataTypes.STRING,
+        allowNull: false,
+    },
+    balance: {
+        type: sequelize_1.DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+}, {
+    sequelize: db_1.default,
+    tableName: "wallets",
+    timestamps: true,
+});
 exports.default = Wallet;

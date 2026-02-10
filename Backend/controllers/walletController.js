@@ -15,19 +15,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getWallets = exports.createTransaction = exports.getHistory = exports.getBalance = exports.createWallet = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const models_1 = require("../models");
-const withRetry_1 = require("../utils/withRetry");
+/* ======================================================
+   CREATE WALLET
+====================================================== */
 const createWallet = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId, assetType } = req.body;
     const wallet = yield models_1.Wallet.create({ userId, assetType });
     res.json(wallet);
 });
 exports.createWallet = createWallet;
+/* ======================================================
+   GET BALANCE (Ledger Source of Truth)
+====================================================== */
 const getBalance = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const walletId = Number(req.params.walletId);
     const balance = (yield models_1.Ledger.sum("amount", { where: { walletId } })) || 0;
     res.json({ balance });
 });
 exports.getBalance = getBalance;
+/* ======================================================
+   GET LEDGER HISTORY
+====================================================== */
 const getHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const walletId = Number(req.params.walletId);
     const history = yield models_1.Ledger.findAll({
@@ -37,50 +45,61 @@ const getHistory = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     res.json(history);
 });
 exports.getHistory = getHistory;
+/* ======================================================
+   CREATE TRANSACTION — FULLY FIXED
+====================================================== */
 const createTransaction = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { walletId, amount, type, idempotencyKey } = req.body;
-    if (!walletId || !amount || amount <= 0 || !type || !idempotencyKey) {
+    const walletIdNum = Number(walletId);
+    const amt = Number(amount);
+    if (!walletIdNum || !amt || amt <= 0 || !type || !idempotencyKey) {
         return res.status(400).json({ msg: "Invalid request data" });
     }
     try {
-        yield (0, withRetry_1.withRetry)(() => __awaiter(void 0, void 0, void 0, function* () {
-            const t = yield db_1.default.transaction();
-            // 1️⃣ Idempotency check
+        yield db_1.default.transaction((t) => __awaiter(void 0, void 0, void 0, function* () {
+            /* 1️⃣ Idempotency */
             const existing = yield models_1.Transaction.findOne({
                 where: { idempotencyKey },
                 transaction: t,
                 lock: t.LOCK.UPDATE,
             });
-            if (existing) {
-                yield t.rollback();
-                return; // silently ignore duplicate
-            }
-            // 2️⃣ Lock wallet
-            yield models_1.Wallet.findByPk(walletId, {
+            if (existing)
+                return;
+            /* 2️⃣ Lock wallet */
+            const wallet = yield models_1.Wallet.findByPk(walletIdNum, {
                 transaction: t,
                 lock: t.LOCK.UPDATE,
             });
-            // 3️⃣ Current balance
+            if (!wallet)
+                throw new Error("Wallet not found");
+            /* 3️⃣ Ledger balance */
             const balance = (yield models_1.Ledger.sum("amount", {
-                where: { walletId },
+                where: { walletId: walletIdNum },
                 transaction: t,
             })) || 0;
-            // 4️⃣ Decide ledger amount based on type
-            const ledgerAmount = type === "purchase" ? -Math.abs(amount) : Math.abs(amount);
-            // 5️⃣ Insufficient funds check
+            /* 4️⃣ Signed amount */
+            const ledgerAmount = type === "purchase"
+                ? -Math.abs(amt)
+                : Math.abs(amt);
             if (ledgerAmount < 0 && balance + ledgerAmount < 0) {
-                yield t.rollback();
                 throw new Error("Insufficient funds");
             }
-            // 6️⃣ Create transaction
-            const tx = yield models_1.Transaction.create({ idempotencyKey, type }, { transaction: t });
-            // 7️⃣ Create ledger entry
+            /* 5️⃣ Create transaction */
+            const tx = yield models_1.Transaction.create({
+                idempotencyKey,
+                type,
+                status: "completed",
+            }, { transaction: t });
+            const newBalance = balance + ledgerAmount;
+            /* 6️⃣ Ledger entry */
             yield models_1.Ledger.create({
-                walletId,
+                walletId: walletIdNum,
                 transactionId: tx.id,
                 amount: ledgerAmount,
+                balanceAfter: newBalance,
             }, { transaction: t });
-            yield t.commit();
+            /* 7️⃣ Update wallet balance */
+            yield wallet.update({ balance: newBalance }, { transaction: t });
         }));
         res.json({ success: true });
     }
@@ -89,6 +108,9 @@ const createTransaction = (req, res) => __awaiter(void 0, void 0, void 0, functi
     }
 });
 exports.createTransaction = createTransaction;
+/* ======================================================
+   GET ALL WALLETS
+====================================================== */
 const getWallets = (_, res) => __awaiter(void 0, void 0, void 0, function* () {
     const wallets = yield models_1.Wallet.findAll();
     res.json(wallets);

@@ -1,7 +1,7 @@
 // TransactionForm.tsx
 import { useState } from "react";
 import API from "../api/api";
-import { DollarSign, AlertCircle, ChevronDown, Wallet } from "lucide-react";
+import { DollarSign, AlertCircle, ChevronDown, Wallet, RefreshCw } from "lucide-react";
 
 interface Props {
     walletId: number;
@@ -15,6 +15,7 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
     const [error, setError] = useState<string | null>(null);
     const [transactionType, setTransactionType] = useState<"topup" | "purchase">("topup");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<string>("");
 
     const transactionOptions = [
         { value: "topup", label: "Add Funds", icon: "➕", color: "positive" },
@@ -28,6 +29,8 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
 
         const value = parseFloat(amount);
 
+        /* ---------- BASIC VALIDATION ---------- */
+
         if (!value || value <= 0) {
             setError("Please enter a valid amount greater than 0");
             return;
@@ -38,73 +41,100 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
             return;
         }
 
-        if (transactionType === "purchase" && value > currentBalance) {
-            setError(`Insufficient funds. Your current balance is $${currentBalance.toFixed(2)}`);
-            return;
-        }
-
         setIsSubmitting(true);
         setError(null);
 
         try {
-            await API.post("/wallet/transaction", {
+            const payload = {
                 walletId,
                 amount: value,
                 type: transactionType,
-                idempotencyKey: crypto.randomUUID(),
-            });
+                idempotencyKey: `${transactionType}-${walletId}-${Date.now()}`
+            };
+
+            const response = await API.post("/wallet/transaction", payload);
 
             setAmount("");
             refreshAll();
 
-            // Show success message
-            setTimeout(() => {
-                setError(null);
-            }, 3000);
+            setError(
+                ` ${transactionType === "topup" ? "Added" : "Spent"
+                } $${value.toFixed(2)} successfully!`
+            );
+
+            setTimeout(() => setError(null), 3000);
 
         } catch (error: any) {
-            // Handle specific backend errors
-            const backendError = error.response?.data?.msg;
-            if (backendError === "Insufficient funds") {
-                setError(`Transaction failed: Insufficient funds. Current balance: $${currentBalance.toFixed(2)}`);
-            } else if (backendError === "Invalid request data") {
-                setError("Invalid transaction data. Please check the amount and try again.");
-            } else if (error.response?.status === 400) {
-                setError(backendError || "Transaction failed. Please try again.");
-            } else if (error.response?.status === 429) {
-                setError("Too many requests. Please wait a moment before trying again.");
-            } else if (error.response?.status === 500) {
-                setError("Server error. Please try again later.");
-            } else if (!error.response) {
-                setError("Network error. Please check your connection.");
+            const msg =
+                error.response?.data?.msg ||
+                error.response?.data?.message ||
+                "Transaction failed";
+
+            if (msg.toLowerCase().includes("insufficient")) {
+                setError(" Insufficient funds");
             } else {
-                setError("Transaction failed. Please try again.");
+                setError(` ${msg}`);
             }
-            console.error("Transaction error:", error);
         } finally {
             setIsSubmitting(false);
         }
     }
 
+
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setAmount(value);
-        setError(null); // Clear error when user starts typing
+        // Allow only numbers and decimal point
+        if (/^\d*\.?\d*$/.test(value)) {
+            setAmount(value);
+            setError(null);
+            setDebugInfo("");
+        }
     };
 
     const handleTypeChange = (type: "topup" | "purchase") => {
         setTransactionType(type);
         setIsDropdownOpen(false);
-        setError(null); // Clear error when type changes
+        setError(null);
+        setDebugInfo("");
     };
 
     const getSubmitButtonText = () => {
         if (isSubmitting) {
-            return "Processing...";
+            return transactionType === "topup" ? "Adding Funds..." : "Processing Purchase...";
         }
         return transactionType === "topup"
             ? `Add $${amount || "0.00"}`
             : `Spend $${amount || "0.00"}`;
+    };
+
+    const handleTestPurchase = async () => {
+        // Test with exact Postman payload
+        setIsSubmitting(true);
+        setError(null);
+
+        try {
+            const testPayload = {
+                walletId: 1,
+                amount: 50,
+                type: "purchase",
+                idempotencyKey: "purchase-unique-001"
+            };
+
+            console.log("Testing with Postman payload:", testPayload);
+            setDebugInfo("Testing with Postman payload...");
+
+            const response = await API.post("/wallet/transaction", testPayload);
+            console.log("Test response:", response.data);
+
+            setError(" Test purchase successful! Check console for details.");
+            refreshAll();
+
+        } catch (err: any) {
+            console.error("Test purchase failed:", err);
+            setError(` Test failed: ${err.response?.data?.message || err.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -112,14 +142,29 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
             <div className="card-header">
                 <Wallet size={20} />
                 <h3>New Transaction</h3>
+                <button
+                    onClick={handleTestPurchase}
+                    className="test-button"
+                    title="Test with Postman payload"
+                    disabled={isSubmitting}
+                >
+                    <RefreshCw size={14} />
+                    Test
+                </button>
             </div>
 
             <div className="card-content">
                 <form onSubmit={handleSubmit}>
                     {error && (
-                        <div className={`message-banner ${error.includes("success") ? 'success' : 'error'}`}>
+                        <div className={`message-banner ${error.includes("") ? 'success' : 'error'}`}>
                             <AlertCircle size={16} />
                             <span>{error}</span>
+                        </div>
+                    )}
+
+                    {debugInfo && (
+                        <div className="debug-info">
+                            <small>{debugInfo}</small>
                         </div>
                     )}
 
@@ -177,19 +222,19 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
                                     onChange={handleAmountChange}
                                     placeholder="0.00"
                                     type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    max={transactionType === "topup" ? "10000" : undefined}
+
+                                    max={transactionType === "topup" ? 10000 : undefined}
                                     disabled={isSubmitting}
                                     className="amount-input"
                                     required
                                 />
+
                             </div>
                             <div className="input-hints">
                                 {transactionType === "topup" && (
                                     <span className="hint">Maximum: $10,000</span>
                                 )}
-                                {transactionType === "purchase" && currentBalance > 0 && (
+                                {transactionType === "purchase" && (
                                     <span className="hint">
                                         Available: ${currentBalance.toFixed(2)}
                                     </span>
@@ -211,12 +256,19 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
                                 ${amount || "0.00"}
                             </span>
                         </div>
-                        {transactionType === "purchase" && amount && currentBalance > 0 && (
+                        {transactionType === "purchase" && amount && (
                             <div className="summary-row">
                                 <span>New Balance:</span>
-                                <span className={`summary-value ${(currentBalance - parseFloat(amount)) < 0 ? 'negative' : ''
-                                    }`}>
+                                <span className={`summary-value ${(currentBalance - parseFloat(amount)) < 0 ? 'negative' : 'positive'}`}>
                                     ${(currentBalance - parseFloat(amount)).toFixed(2)}
+                                </span>
+                            </div>
+                        )}
+                        {transactionType === "topup" && amount && (
+                            <div className="summary-row">
+                                <span>New Balance:</span>
+                                <span className="summary-value positive">
+                                    ${(currentBalance + parseFloat(amount)).toFixed(2)}
                                 </span>
                             </div>
                         )}
@@ -224,18 +276,28 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
 
                     <button
                         type="submit"
-                        disabled={!amount || isSubmitting}
+                        disabled={!amount || isSubmitting || parseFloat(amount) <= 0}
                         className={`submit-btn ${transactionType} ${isSubmitting ? 'submitting' : ''}`}
                     >
                         {isSubmitting ? (
                             <>
                                 <div className="spinner"></div>
-                                Processing...
+                                {transactionType === "topup" ? "Adding..." : "Processing..."}
                             </>
                         ) : (
                             getSubmitButtonText()
                         )}
                     </button>
+
+                    <div className="transaction-tips">
+                        <small>
+                            {transactionType === "purchase" && (
+                                <>
+                                    💡 <strong>Purchase not working?</strong> Try entering exactly <code>50</code> and click "Test" button above.
+                                </>
+                            )}
+                        </small>
+                    </div>
                 </form>
             </div>
         </div>

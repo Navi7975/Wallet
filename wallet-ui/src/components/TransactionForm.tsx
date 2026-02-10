@@ -29,8 +29,6 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
 
         const value = parseFloat(amount);
 
-        /* ---------- BASIC VALIDATION ---------- */
-
         if (!value || value <= 0) {
             setError("Please enter a valid amount greater than 0");
             return;
@@ -52,14 +50,14 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
                 idempotencyKey: `${transactionType}-${walletId}-${Date.now()}`
             };
 
-            const response = await API.post("/wallet/transaction", payload);
+            // ✅ FIX — removed unused variable
+            await API.post("/wallet/transaction", payload);
 
             setAmount("");
             refreshAll();
 
             setError(
-                ` ${transactionType === "topup" ? "Added" : "Spent"
-                } $${value.toFixed(2)} successfully!`
+                `${transactionType === "topup" ? "Added" : "Spent"} $${value.toFixed(2)} successfully!`
             );
 
             setTimeout(() => setError(null), 3000);
@@ -71,14 +69,15 @@ export default function TransactionForm({ walletId, refreshAll, currentBalance =
                 "Transaction failed";
 
             if (msg.toLowerCase().includes("insufficient")) {
-                setError(" Insufficient funds");
+                setError("Insufficient funds");
             } else {
-                setError(` ${msg}`);
+                setError(`${msg}`);
             }
         } finally {
             setIsSubmitting(false);
         }
     }
+
 
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {

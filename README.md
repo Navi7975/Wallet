@@ -202,7 +202,7 @@ ________________________________________
 
 
 
-check transaction detail down by scrolling
+check transaction detail by scrolling down
 
 
 

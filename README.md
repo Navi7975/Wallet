@@ -173,6 +173,9 @@ ________________________________________
 you can add coins to wallet
 
 <img width="1916" height="937" alt="image" src="https://github.com/user-attachments/assets/f4983e3e-d802-45ae-b563-8e87578464f5" />
+
+
+
 ________________________________________
 
 
@@ -182,10 +185,27 @@ select spend and you can spend if their is sufficient balance
 
 
 <img width="1918" height="971" alt="image" src="https://github.com/user-attachments/assets/e5d720a3-4537-4571-9693-995595dd4e65" />
+
+
+
 ________________________________________
+
+
 submit spend button
+
+
+
 <img width="1912" height="935" alt="image" src="https://github.com/user-attachments/assets/3fb2bdc6-7b78-4846-b691-1443809ad82f" />
+
+
 ________________________________________
+
+
+
 check transaction detail down by scrolling
+
+
+
+
 <img width="1515" height="935" alt="image" src="https://github.com/user-attachments/assets/a25c66d2-abac-4cde-997a-6e7cf5bd6dd1" />
 
